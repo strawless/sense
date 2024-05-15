@@ -37,6 +37,7 @@ class SenseableBase(object):
         self._realtime = {}
         self._devices = []
         self._trend_data = {}
+        self._hourly_data = {}
         self._monitor = {}
         for scale in valid_scales:
             self._trend_data[scale] = {}

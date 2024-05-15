@@ -144,7 +144,8 @@ class Senseable(SenseableBase):
                 self.update_realtime(False)
             else:
                 raise e
-                
+    
+
 
     def get_realtime_stream(self):
         """Reads realtime data from websocket.  Realtime data variable is set and data is
@@ -202,6 +203,30 @@ class Senseable(SenseableBase):
             "app/history/trends?monitor_id=%s&scale=%s&start=%s"
             % (self.sense_monitor_id, scale, dt.strftime("%Y-%m-%dT%H:%M:%S"))
         )
+
+    def get_hourly_tread_data_for_the_month(self, dt=None):
+        """Update trend data for specified scale from API.
+        Optionally set a date to fetch data from."""
+        if not dt:
+            dt = datetime.utcnow()
+            first_of_the_month = dt.replace(day=1)
+
+        url = "monitors/%s/data?start=%s&end=%s&time_unit=HOUR&device_id=" %(self.sense_monitor_id, first_of_the_month.strftime("%Y-%m-%dT%H:%M:%S"), dt.strftime("%Y-%m-%dT%H:%M:%S"))
+        payload = {}
+        try:
+            resp = self.s.get(
+                API_URL + url,
+                headers=self.headers,
+                timeout=self.api_timeout,
+                params=payload,
+            )
+
+            # 4xx represents unauthenticated
+            if resp.status_code == 401 or resp.status_code == 403 or resp.status_code == 404:
+                raise SenseAuthenticationException("API Return Code: %s", resp.status_code)
+            return resp.text
+        except ReadTimeout:
+            raise SenseAPITimeoutException("API call timed out")
 
     def update_trend_data(self, dt=None):
         """Update trend data of all scales from API.
