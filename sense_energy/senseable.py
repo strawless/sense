@@ -204,14 +204,16 @@ class Senseable(SenseableBase):
             % (self.sense_monitor_id, scale, dt.strftime("%Y-%m-%dT%H:%M:%S"))
         )
 
-    def get_hourly_tread_data_for_the_month(self, dt=None):
+    def get_hourly_tread_data_for_the_month(self, end_date=None, start_date=None):
         """Update trend data for specified scale from API.
         Optionally set a date to fetch data from."""
-        if not dt:
-            dt = datetime.utcnow()
-            first_of_the_month = dt.replace(day=1)
+        if not end_date:
+            end_date = datetime.utcnow()
+        
+        if not start_date:
+            start_date = end_date.replace(day=1)
 
-        url = "monitors/%s/data?start=%s&end=%s&time_unit=HOUR&device_id=" %(self.sense_monitor_id, first_of_the_month.strftime("%Y-%m-%dT%H:%M:%S"), dt.strftime("%Y-%m-%dT%H:%M:%S"))
+        url = "monitors/%s/data?start=%s&end=%s&time_unit=HOUR&device_id=" %(self.sense_monitor_id, start_date.strftime("%Y-%m-%dT%H:%M:%S"), end_date.strftime("%Y-%m-%dT%H:%M:%S"))
         payload = {}
         try:
             resp = self.s.get(
@@ -224,6 +226,22 @@ class Senseable(SenseableBase):
             # 4xx represents unauthenticated
             if resp.status_code == 401 or resp.status_code == 403 or resp.status_code == 404:
                 raise SenseAuthenticationException("API Return Code: %s", resp.status_code)
+            
+            if resp.text:
+                # throw away the first line
+                ret_value = []
+                lines = resp.text.splitlines()
+
+                header = lines[1].strip().split(",")
+                for line in lines[2:]:
+                    # Create a dictionary matching header to row data
+                    row_dict = dict(zip(header, line.strip().split(",")))
+                    
+                    ret_value.append(row_dict)
+
+                return ret_value
+
+
             return resp.text
         except ReadTimeout:
             raise SenseAPITimeoutException("API call timed out")
